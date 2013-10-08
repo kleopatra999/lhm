@@ -19,12 +19,23 @@ module Lhm
       @throttler = options[:throttler]
       @start = options[:start] || select_start
       @limit = options[:limit] || select_limit
+      @autoincrementing = options[:autoincrementing].nil? ? true : options[:autoincrementing]
     end
 
     # Copies chunks of size `stride`, starting from `start` up to id `limit`.
     def up_to(&block)
-      1.upto(traversable_chunks_size) do |n|
-        yield(bottom(n), top(n))
+      if @autoincrementing
+        1.upto(traversable_chunks_size) do |n|
+          yield(bottom(n), top(n))
+        end
+      else
+        lowest = @start
+
+        while lowest < @limit
+          highest = select_next_highest_id(lowest) or break
+          yield(lowest, highest)
+          lowest = highest + 1
+        end
       end
     end
 
@@ -54,6 +65,19 @@ module Lhm
     def select_limit
       limit = connection.select_value("select max(id) from #{ origin_name }")
       limit ? limit.to_i : nil
+    end
+
+    def select_next_highest_id(lowest)
+      next_max_id = connection.select_value(<<-SQL.chomp
+        select max(id) from (
+          select id from #{ origin_name }
+          where id > #{ lowest }
+          order by id
+          limit #{ @throttler.stride }
+        ) as ids
+        SQL
+      )
+      next_max_id ? next_max_id.to_i : nil
     end
 
   private
