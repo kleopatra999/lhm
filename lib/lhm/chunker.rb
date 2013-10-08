@@ -17,27 +17,20 @@ module Lhm
       @migration = migration
       @connection = connection
       @throttler = options[:throttler]
-      @start = options[:start] || select_start
+      @next_row = options[:start] || select_start
       @limit = options[:limit] || select_limit
     end
 
     # Copies chunks of size `stride`, starting from `start` up to id `limit`.
     def up_to(&block)
-      1.upto(traversable_chunks_size) do |n|
-        yield(bottom(n), top(n))
+      while @next_row < @limit
+        yield(@next_row, top)
+        @next_row = top + 1
       end
     end
 
-    def traversable_chunks_size
-      @limit && @start ? ((@limit - @start + 1) / @throttler.stride.to_f).ceil : 0
-    end
-
-    def bottom(chunk)
-      (chunk - 1) * @throttler.stride + @start
-    end
-
     def top(chunk)
-      [chunk * @throttler.stride + @start - 1, @limit].min
+      @next_row + @throttler.stride
     end
 
     def copy(lowest, highest)
@@ -79,7 +72,7 @@ module Lhm
     end
 
     def validate
-      if @start && @limit && @start > @limit
+      if @next_row && @limit && @next_row > @limit
         error("impossible chunk options (limit must be greater than start)")
       end
     end
