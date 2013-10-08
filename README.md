@@ -55,10 +55,22 @@ running the migrations.
 The test suite is also run against MRI 2.0.0 in Continuous Integration, but
 there are a few bugs left to fix.
 
-## Limitations
+## Autoincrementing (Monotonically increasing) columns
 
-Lhm requires a monotonically increasing numeric Primary Key on the table, due to how
-the Chunker works.
+By default, Lhm requires a monotonically increasing numeric Primary Key on
+the table. The default chunker strategy divides the ID space into blocks of
+40,000 records. If the Primary Key is an INT or BIGINT column and does not
+monotonically increase, then chunker may use another strategy to identify
+chunks.
+
+To specify the non-autoincrementing strategy in your migration:
+
+```ruby
+Lhm.change_table :users, :autoincrementing => false do |m|
+  # ...
+end
+```
+
 
 ## Installation
 
