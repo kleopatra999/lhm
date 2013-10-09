@@ -24,6 +24,8 @@ module Lhm
 
     # Copies chunks of size `stride`, starting from `start` up to id `limit`.
     def up_to(&block)
+      return if @start.nil? || @limit.nil? # no records in table
+
       if @autoincrementing
         1.upto(traversable_chunks_size) do |n|
           yield(bottom(n), top(n))
